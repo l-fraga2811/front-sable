@@ -1,0 +1,156 @@
+// Package main é o ponto de entrada da aplicação Go.
+// Todo programa Go executável deve ter um package main e uma função main().
+// # Registrar
+// curl -X POST http://localhost:8080/auth/register \
+//   -H "Content-Type: application/json" \
+//   -d '{"username":"joao","email":"joao@email.com","password":"senha123"}'
+// 
+// # Login
+// curl -X POST http://localhost:8080/auth/login \
+//   -H "Content-Type: application/json" \
+//   -d '{"username":"joao","password":"senha123"}'
+package main
+
+import (
+	"log"
+	"os"
+
+	"github.com/gin-gonic/gin"
+
+	"go-api/handlers"
+	"go-api/middleware"
+)
+
+// main é a função que inicia a aplicação.
+// É a primeira função executada quando você roda "go run main.go".
+func main() {
+	// Configura o modo do Gin.
+	// gin.ReleaseMode desativa logs de debug em produção.
+	// gin.DebugMode (padrão) mostra logs detalhados.
+	// Você pode definir via variável de ambiente: GIN_MODE=release
+	if os.Getenv("GIN_MODE") == "" {
+		gin.SetMode(gin.DebugMode)
+	}
+
+	// gin.Default() cria um router com middlewares padrão:
+	// - Logger: loga todas as requisições
+	// - Recovery: recupera de panics e retorna 500
+	router := gin.Default()
+
+	// Configura CORS (Cross-Origin Resource Sharing).
+	// Isso permite que frontends em outros domínios acessem a API.
+	router.Use(corsMiddleware())
+
+	// Cria as instâncias dos handlers.
+	// Usamos o padrão de injeção de dependência.
+	authHandler := handlers.NewAuthHandler()
+	itemHandler := handlers.NewItemHandler()
+
+	// ============================================
+	// ROTAS PÚBLICAS (não requerem autenticação)
+	// ============================================
+
+	// Grupo de rotas de autenticação.
+	// router.Group cria um prefixo comum para as rotas.
+	authRoutes := router.Group("/auth")
+	{
+		// POST /auth/register - Registrar novo usuário
+		authRoutes.POST("/register", authHandler.Register)
+
+		// POST /auth/login - Login e obtenção do token JWT
+		authRoutes.POST("/login", authHandler.Login)
+	}
+
+	// ============================================
+	// ROTAS PROTEGIDAS (requerem autenticação)
+	// ============================================
+
+	// Grupo de rotas que requerem autenticação.
+	// middleware.AuthMiddleware() é executado ANTES de cada handler neste grupo.
+	protectedRoutes := router.Group("/api")
+	protectedRoutes.Use(middleware.AuthMiddleware())
+	{
+		// Rotas de autenticação que requerem token
+		// POST /auth/logout - Logout (invalida o token)
+		protectedRoutes.POST("/auth/logout", authHandler.Logout)
+
+		// GET /auth/profile - Obter dados do usuário autenticado
+		protectedRoutes.GET("/auth/profile", authHandler.GetProfile)
+
+		// ============================================
+		// CRUD DE ITEMS
+		// ============================================
+
+		// GET /api/items - Listar todos os items do usuário
+		protectedRoutes.GET("/items", itemHandler.GetAll)
+
+		// GET /api/items/:id - Buscar item por ID
+		// :id é um parâmetro de rota (path parameter)
+		protectedRoutes.GET("/items/:id", itemHandler.GetByID)
+
+		// POST /api/items - Criar novo item
+		protectedRoutes.POST("/items", itemHandler.Create)
+
+		// PUT /api/items/:id - Atualizar item existente
+		protectedRoutes.PUT("/items/:id", itemHandler.Update)
+
+		// DELETE /api/items/:id - Deletar item
+		protectedRoutes.DELETE("/items/:id", itemHandler.Delete)
+	}
+
+	// Rota de health check (útil para monitoramento).
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status":  "ok",
+			"message": "API está funcionando!",
+		})
+	})
+
+	// Define a porta do servidor.
+	// Primeiro tenta ler da variável de ambiente PORT.
+	// Se não existir, usa 8080 como padrão.
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	// Loga a mensagem de início.
+	log.Printf("🚀 Servidor iniciando na porta %s", port)
+	log.Printf("📚 Documentação: http://localhost:%s/health", port)
+
+	// router.Run inicia o servidor HTTP.
+	// Ele bloqueia a execução até o servidor ser encerrado.
+	// O formato ":8080" significa "escute em todas as interfaces na porta 8080".
+	if err := router.Run(":" + port); err != nil {
+		log.Fatalf("❌ Erro ao iniciar servidor: %v", err)
+	}
+}
+
+// corsMiddleware configura o CORS para a API.
+// CORS é necessário quando o frontend está em um domínio diferente da API.
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Access-Control-Allow-Origin define quais origens podem acessar a API.
+		// "*" permite qualquer origem (não recomendado em produção).
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+
+		// Access-Control-Allow-Credentials permite envio de cookies/auth headers.
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		// Access-Control-Allow-Headers define quais headers o cliente pode enviar.
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+
+		// Access-Control-Allow-Methods define quais métodos HTTP são permitidos.
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
+
+		// Requisições OPTIONS são "preflight requests" do CORS.
+		// O navegador envia OPTIONS antes de requisições "complexas".
+		if c.Request.Method == "OPTIONS" {
+			// Retorna 204 (No Content) para preflight requests.
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	}
+}
