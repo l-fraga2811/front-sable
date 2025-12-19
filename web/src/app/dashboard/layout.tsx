@@ -29,9 +29,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     }
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen w-full px-6 bg-background">
             <Header />
-            <main className="container py-6">{children}</main>
+            <main className=" p-6">{children}</main>
         </div>
     );
 }

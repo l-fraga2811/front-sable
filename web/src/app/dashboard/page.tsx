@@ -9,6 +9,7 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { fetchItems } from "@/store/items/actions";
 import { selectItems, selectItemsLoading } from "@/store/items/selectors";
 import type { Item } from "@/types";
+import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number';
 
 export default function DashboardPage() {
     const dispatch = useAppDispatch();
@@ -50,7 +51,10 @@ export default function DashboardPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold">Meus Items</h1>
+                    <h1 className="text-3xl font-bold">
+                        Meus Items
+                        <SlidingNumber fromNumber={0} number={items.length} />
+                    </h1>
                     <p className="text-muted-foreground">
                         Gerencie seus items de forma simples e eficiente
                     </p>
