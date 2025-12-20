@@ -1,0 +1,344 @@
+basePath: /
+definitions:
+  models.CreateItemRequest:
+    properties:
+      description:
+        type: string
+      price:
+        type: number
+      title:
+        type: string
+    required:
+    - title
+    type: object
+  models.Item:
+    properties:
+      completed:
+        description: Completed é um booleano que indica se o item está completo.
+        type: boolean
+      createdAt:
+        description: |-
+          CreatedAt armazena quando o item foi criado.
+          O pacote "time" é a biblioteca padrão de Go para datas.
+        type: string
+      description:
+        description: |-
+          Description é a descrição do item.
+          O ponteiro (*string) permite que o campo seja nil (nulo).
+          Isso é útil para campos opcionais.
+        type: string
+      id:
+        description: |-
+          ID é o identificador único do item.
+          Usamos string para simplificar, mas em produção você usaria UUID.
+        type: string
+      price:
+        description: |-
+          Price demonstra o uso de float64 para valores decimais.
+          Em produção, para dinheiro, use bibliotecas específicas para evitar
+          problemas de precisão com ponto flutuante.
+        type: number
+      title:
+        description: Title é o título do item.
+        type: string
+      updatedAt:
+        description: UpdatedAt armazena quando o item foi atualizado pela última vez.
+        type: string
+      userId:
+        description: |-
+          UserID é o ID do usuário que criou o item.
+          Isso permite que cada usuário tenha seus próprios items.
+        type: string
+    required:
+    - title
+    type: object
+  models.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  models.RegisterRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  models.UpdateItemRequest:
+    properties:
+      completed:
+        type: boolean
+      description:
+        type: string
+      price:
+        type: number
+      title:
+        type: string
+    type: object
+  models.UserResponse:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      username:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API para gerenciamento de items com autenticação JWT
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Items Manager API
+  version: "1.0"
+paths:
+  /api/items:
+    get:
+      description: Retorna todos os items do usuário autenticado
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Item'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Listar items
+      tags:
+      - items
+    post:
+      consumes:
+      - application/json
+      description: Cria um novo item para o usuário autenticado
+      parameters:
+      - description: Dados do item
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateItemRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Item'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Criar item
+      tags:
+      - items
+  /api/items/{id}:
+    delete:
+      description: Remove um item do usuário autenticado
+      parameters:
+      - description: ID do item
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Deletar item
+      tags:
+      - items
+    get:
+      description: Retorna um item específico do usuário autenticado
+      parameters:
+      - description: ID do item
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Item'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Buscar item por ID
+      tags:
+      - items
+    put:
+      consumes:
+      - application/json
+      description: Atualiza um item do usuário autenticado
+      parameters:
+      - description: ID do item
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Dados para atualizar
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateItemRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Item'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Atualizar item
+      tags:
+      - items
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Autentica o usuário e retorna um token JWT
+      parameters:
+      - description: Credenciais
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Login de usuário
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      description: Invalida o token JWT atual
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Logout de usuário
+      tags:
+      - auth
+  /auth/profile:
+    get:
+      description: Retorna os dados do usuário autenticado
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.UserResponse'
+      security:
+      - BearerAuth: []
+      summary: Obter perfil do usuário
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Cria uma nova conta de usuário
+      parameters:
+      - description: Dados do usuário
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Registrar novo usuário
+      tags:
+      - auth
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

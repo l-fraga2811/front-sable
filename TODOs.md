@@ -9,3 +9,5 @@
 ## [ ] 5 - Integração com OAuth Google, facebook, etc
 
 ## [ ] 6 - Integração com 
+
+## [ ] 7 - Comando ~/go/bin/swag init ao inicializar em qualquer vm 
