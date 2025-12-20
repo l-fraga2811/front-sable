@@ -21,7 +21,7 @@ export default function LoginPage() {
     const isLoading = useAppSelector(selectAuthLoading);
     const error = useAppSelector(selectAuthError);
 
-    const [username, setUsername] = useState("");
+    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
 
@@ -41,12 +41,12 @@ export default function LoginPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!username || !password) {
+        if (!email || !password) {
             toast.error("Preencha todos os campos");
             return;
         }
 
-        const result = await dispatch(login({ username, password }));
+        const result = await dispatch(login({ email, password }));
         if (login.fulfilled.match(result)) {
             toast.success("Login realizado com sucesso!");
             router.push("/dashboard");
@@ -65,13 +65,13 @@ export default function LoginPage() {
                 <form onSubmit={handleSubmit}>
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="username">Usuário</Label>
+                            <Label htmlFor="email">E-mail</Label>
                             <Input
-                                id="username"
-                                type="text"
-                                placeholder="Digite seu usuário"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
+                                id="email"
+                                type="email"
+                                placeholder="Digite seu e-mail"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 disabled={isLoading}
                             />
                         </div>

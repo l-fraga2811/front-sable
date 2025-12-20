@@ -8,13 +8,17 @@ export const login = createAsyncThunk(
     try {
       const response = await authServices.login(data);
       localStorage.setItem("token", response.token);
-      localStorage.setItem("user", JSON.stringify(response.user));
-      return response;
+
+      const profile = await authServices.getProfile(response.token);
+      localStorage.setItem("user", JSON.stringify(profile));
+
+      return {
+        ...response,
+        user: profile,
+      };
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { error?: string } } };
-      return rejectWithValue(
-        err.response?.data?.error || "Erro ao fazer login"
-      );
+      const err = error as { message?: string };
+      return rejectWithValue(err.message || "Erro ao fazer login");
     }
   }
 );
@@ -26,8 +30,8 @@ export const register = createAsyncThunk(
       const response = await authServices.register(data);
       return response;
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { error?: string } } };
-      return rejectWithValue(err.response?.data?.error || "Erro ao registrar");
+      const err = error as { message?: string };
+      return rejectWithValue(err.message || "Erro ao registrar");
     }
   }
 );
@@ -43,10 +47,8 @@ export const logout = createAsyncThunk(
     } catch (error: unknown) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      const err = error as { response?: { data?: { error?: string } } };
-      return rejectWithValue(
-        err.response?.data?.error || "Erro ao fazer logout"
-      );
+      const err = error as { message?: string };
+      return rejectWithValue(err.message || "Erro ao fazer logout");
     }
   }
 );
@@ -56,6 +58,7 @@ export const getProfile = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await authServices.getProfile();
+      localStorage.setItem("user", JSON.stringify(response));
       return response;
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } } };

@@ -6,22 +6,25 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"go-api/middleware"
 	"go-api/models"
-	"go-api/storage"
+	"go-api/supabase"
 )
 
 // ItemHandler agrupa os handlers do CRUD de items.
 type ItemHandler struct {
-	store *storage.Storage
+	client *supabase.RestClient
 }
 
 // NewItemHandler cria uma nova instância de ItemHandler.
 func NewItemHandler() *ItemHandler {
+	client, err := supabase.GetClient()
+	if err != nil {
+		return &ItemHandler{}
+	}
 	return &ItemHandler{
-		store: storage.GetStorage(),
+		client: client.RestClient,
 	}
 }
 
@@ -46,6 +49,20 @@ func (h *ItemHandler) Create(c *gin.Context) {
 		return
 	}
 
+	accessToken := middleware.GetTokenFromContext(c)
+	if accessToken == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Usuário não autenticado",
+		})
+		return
+	}
+	if h.client == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Cliente Supabase não inicializado",
+		})
+		return
+	}
+
 	// Faz o parse do body JSON para a struct de request.
 	var req models.CreateItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -55,28 +72,28 @@ func (h *ItemHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// Cria o item com os dados fornecidos.
-	// time.Now() retorna a data/hora atual.
-	item := models.Item{
-		ID:          uuid.New().String(),
+	created, err := h.client.CreateItem(c.Request.Context(), accessToken, supabase.CreateItemPayload{
+		UserID:      userID,
 		Title:       req.Title,
 		Description: req.Description,
 		Price:       req.Price,
 		Completed:   false,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-		UserID:      userID,
-	}
-
-	// Salva o item no storage.
-	if err := h.store.CreateItem(item); err != nil {
+	})
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Erro ao criar item",
 		})
 		return
 	}
 
-	// Retorna o item criado com status 201 (Created).
+	item, err := mapItemRow(created)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Erro ao processar item",
+		})
+		return
+	}
+
 	c.JSON(http.StatusCreated, item)
 }
 
@@ -97,13 +114,38 @@ func (h *ItemHandler) GetAll(c *gin.Context) {
 		return
 	}
 
-	// Busca todos os items do usuário.
-	items := h.store.GetItemsByUserID(userID)
+	accessToken := middleware.GetTokenFromContext(c)
+	if accessToken == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Usuário não autenticado",
+		})
+		return
+	}
+	if h.client == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Cliente Supabase não inicializado",
+		})
+		return
+	}
 
-	// Se não houver items, retorna um array vazio (não null).
-	// Isso é uma boa prática para APIs REST.
-	if items == nil {
-		items = []models.Item{}
+	rows, err := h.client.ListItems(c.Request.Context(), accessToken)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Erro ao buscar items",
+		})
+		return
+	}
+
+	items := make([]models.Item, 0, len(rows))
+	for _, row := range rows {
+		item, err := mapItemRow(row)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Erro ao processar items",
+			})
+			return
+		}
+		items = append(items, item)
 	}
 
 	c.JSON(http.StatusOK, items)
@@ -128,21 +170,45 @@ func (h *ItemHandler) GetByID(c *gin.Context) {
 		return
 	}
 
+	accessToken := middleware.GetTokenFromContext(c)
+	if accessToken == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Usuário não autenticado",
+		})
+		return
+	}
+	if h.client == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Cliente Supabase não inicializado",
+		})
+		return
+	}
+
 	// c.Param obtém parâmetros da URL.
 	// Para a rota "/api/items/:id", c.Param("id") retorna o valor de :id.
 	itemID := c.Param("id")
 
-	// Busca o item pelo ID.
-	item, err := h.store.GetItemByID(itemID)
+	row, found, err := h.client.GetItemByID(c.Request.Context(), accessToken, itemID)
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Erro ao buscar item",
+		})
+		return
+	}
+	if !found {
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": "Item não encontrado",
 		})
 		return
 	}
 
-	// Verifica se o item pertence ao usuário autenticado.
-	// Isso é importante para segurança - um usuário não pode ver items de outros.
+	item, err := mapItemRow(row)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Erro ao processar item",
+		})
+		return
+	}
 	if item.UserID != userID {
 		c.JSON(http.StatusForbidden, gin.H{
 			"error": "Você não tem permissão para acessar este item",
@@ -174,13 +240,40 @@ func (h *ItemHandler) Update(c *gin.Context) {
 		return
 	}
 
+	accessToken := middleware.GetTokenFromContext(c)
+	if accessToken == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Usuário não autenticado",
+		})
+		return
+	}
+	if h.client == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Cliente Supabase não inicializado",
+		})
+		return
+	}
+
 	itemID := c.Param("id")
 
-	// Busca o item existente.
-	item, err := h.store.GetItemByID(itemID)
+	row, found, err := h.client.GetItemByID(c.Request.Context(), accessToken, itemID)
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Erro ao buscar item",
+		})
+		return
+	}
+	if !found {
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": "Item não encontrado",
+		})
+		return
+	}
+
+	item, err := mapItemRow(row)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Erro ao processar item",
 		})
 		return
 	}
@@ -202,31 +295,48 @@ func (h *ItemHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// Atualiza apenas os campos fornecidos.
-	// Em Go, strings vazias e zeros são os "zero values".
-	// Você pode usar ponteiros para diferenciar "não enviado" de "enviado vazio".
+	var payload supabase.UpdateItemPayload
 	if req.Title != "" {
-		item.Title = req.Title
+		payload.Title = &req.Title
 	}
 	if req.Description != "" {
-		item.Description = req.Description
+		payload.Description = &req.Description
 	}
 	if req.Price != 0 {
-		item.Price = req.Price
+		payload.Price = &req.Price
 	}
-	// Completed é um bool, então sempre atualizamos.
-	item.Completed = req.Completed
-	item.UpdatedAt = time.Now()
+	payload.Completed = &req.Completed
 
-	// Salva as alterações.
-	if err := h.store.UpdateItem(item); err != nil {
+	updatedRow, updated, err := h.client.UpdateItem(c.Request.Context(), accessToken, itemID, payload)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Erro ao atualizar item",
 		})
 		return
 	}
+	if !updated {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Item não encontrado",
+		})
+		return
+	}
 
-	c.JSON(http.StatusOK, item)
+	updatedItem, err := mapItemRow(updatedRow)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Erro ao processar item",
+		})
+		return
+	}
+
+	if updatedItem.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Você não tem permissão para atualizar este item",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, updatedItem)
 }
 
 // Delete remove um item.
@@ -248,29 +358,32 @@ func (h *ItemHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	accessToken := middleware.GetTokenFromContext(c)
+	if accessToken == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Usuário não autenticado",
+		})
+		return
+	}
+	if h.client == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Cliente Supabase não inicializado",
+		})
+		return
+	}
+
 	itemID := c.Param("id")
 
-	// Busca o item para verificar permissão.
-	item, err := h.store.GetItemByID(itemID)
+	deleted, err := h.client.DeleteItem(c.Request.Context(), accessToken, itemID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Item não encontrado",
-		})
-		return
-	}
-
-	// Verifica permissão.
-	if item.UserID != userID {
-		c.JSON(http.StatusForbidden, gin.H{
-			"error": "Você não tem permissão para deletar este item",
-		})
-		return
-	}
-
-	// Remove o item.
-	if err := h.store.DeleteItem(itemID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Erro ao deletar item",
+		})
+		return
+	}
+	if !deleted {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Item não encontrado",
 		})
 		return
 	}
@@ -280,4 +393,26 @@ func (h *ItemHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Item deletado com sucesso",
 	})
+}
+
+func mapItemRow(row supabase.ItemRow) (models.Item, error) {
+	createdAt, err := time.Parse(time.RFC3339Nano, row.CreatedAt)
+	if err != nil {
+		return models.Item{}, err
+	}
+	updatedAt, err := time.Parse(time.RFC3339Nano, row.UpdatedAt)
+	if err != nil {
+		return models.Item{}, err
+	}
+
+	return models.Item{
+		ID:          row.ID,
+		Title:       row.Title,
+		Description: row.Description,
+		Price:       float64(row.Price),
+		Completed:   row.Completed,
+		CreatedAt:   createdAt,
+		UpdatedAt:   updatedAt,
+		UserID:      row.UserID,
+	}, nil
 }

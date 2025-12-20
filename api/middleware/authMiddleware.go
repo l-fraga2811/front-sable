@@ -6,45 +6,12 @@ package middleware
 import (
 	"log"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 
-	"go-api/storage"
+	"go-api/supabase"
 )
-
-// JWTSecret é a chave secreta usada para assinar os tokens JWT.
-// Em produção, sempre use variáveis de ambiente!
-var JWTSecret = []byte(getJWTSecret())
-
-// getJWTSecret obtém a chave secreta JWT das variáveis de ambiente
-// Se não estiver definida, usa um valor padrão para desenvolvimento
-func getJWTSecret() string {
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		log.Println("AVISO: JWT_SECRET não definido, usando valor padrão (não seguro para produção)")
-		return "minha-chave-secreta-super-segura-mude-em-producao"
-	}
-	return secret
-}
-
-// Claims é a estrutura que define o "payload" do token JWT.
-// Ela "embute" jwt.RegisteredClaims para ter os campos padrão do JWT.
-type Claims struct {
-	// UserID é o ID do usuário autenticado.
-	UserID string `json:"userId"`
-
-	// Username é o nome do usuário.
-	Username string `json:"username"`
-
-	// jwt.RegisteredClaims contém campos padrão como:
-	// - ExpiresAt: quando o token expira
-	// - IssuedAt: quando o token foi criado
-	// - Subject: assunto do token
-	jwt.RegisteredClaims
-}
 
 // AuthMiddleware é o middleware que protege rotas que requerem autenticação.
 // Ele verifica se o token JWT é válido antes de permitir acesso à rota.
@@ -80,27 +47,18 @@ func AuthMiddleware() gin.HandlerFunc {
 		// strings.TrimPrefix remove o prefixo se existir.
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 
-		// Verifica se o token está na blacklist (foi feito logout).
-		store := storage.GetStorage()
-		if store.IsTokenBlacklisted(tokenString) {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "Token foi invalidado (logout realizado)",
+		client, err := supabase.GetClient()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Erro ao inicializar Supabase",
 			})
 			c.Abort()
 			return
 		}
 
-		// Faz o parse e validação do token JWT.
-		// jwt.ParseWithClaims decodifica o token e valida a assinatura.
-		claims := &Claims{}
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-			// Esta função retorna a chave secreta para validar a assinatura.
-			// Você pode adicionar validações extras aqui, como verificar o algoritmo.
-			return JWTSecret, nil
-		})
-
-		// Verifica se houve erro no parse ou se o token é inválido.
-		if err != nil || !token.Valid {
+		claims, err := client.TokenValidator.Validate(tokenString)
+		if err != nil {
+			log.Printf("[AUTH] Erro ao validar token: %v", err)
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": "Token inválido ou expirado",
 			})
@@ -111,8 +69,8 @@ func AuthMiddleware() gin.HandlerFunc {
 		// Se chegou aqui, o token é válido!
 		// Salvamos os dados do usuário no contexto para uso nos handlers.
 		// c.Set salva um valor que pode ser recuperado com c.Get ou c.MustGet.
-		c.Set("userID", claims.UserID)
-		c.Set("username", claims.Username)
+		c.Set("userID", claims.Subject)
+		c.Set("email", claims.Email)
 		c.Set("token", tokenString)
 
 		// c.Next() passa o controle para o próximo handler na cadeia.
