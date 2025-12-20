@@ -4,7 +4,9 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -14,9 +16,19 @@ import (
 )
 
 // JWTSecret é a chave secreta usada para assinar os tokens JWT.
-// IMPORTANTE: Em produção, NUNCA deixe isso hardcoded!
-// Use variáveis de ambiente: os.Getenv("JWT_SECRET")
-var JWTSecret = []byte("minha-chave-secreta-super-segura-mude-em-producao")
+// Em produção, sempre use variáveis de ambiente!
+var JWTSecret = []byte(getJWTSecret())
+
+// getJWTSecret obtém a chave secreta JWT das variáveis de ambiente
+// Se não estiver definida, usa um valor padrão para desenvolvimento
+func getJWTSecret() string {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		log.Println("AVISO: JWT_SECRET não definido, usando valor padrão (não seguro para produção)")
+		return "minha-chave-secreta-super-segura-mude-em-producao"
+	}
+	return secret
+}
 
 // Claims é a estrutura que define o "payload" do token JWT.
 // Ela "embute" jwt.RegisteredClaims para ter os campos padrão do JWT.

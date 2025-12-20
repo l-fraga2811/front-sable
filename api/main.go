@@ -1,14 +1,16 @@
 // Package main é o ponto de entrada da aplicação Go.
 // Todo programa Go executável deve ter um package main e uma função main().
 // # Registrar
-// curl -X POST http://localhost:8080/auth/register \
-//   -H "Content-Type: application/json" \
-//   -d '{"username":"joao","email":"joao@email.com","password":"senha123"}'
-// 
+//
+//	curl -X POST http://localhost:8080/auth/register \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"username":"joao","email":"joao@email.com","password":"senha123"}'
+//
 // # Login
-// curl -X POST http://localhost:8080/auth/login \
-//   -H "Content-Type: application/json" \
-//   -d '{"username":"joao","password":"senha123"}'
+//
+//	curl -X POST http://localhost:8080/auth/login \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"username":"joao","password":"senha123"}'
 package main
 
 import (
@@ -16,6 +18,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 
 	"go-api/handlers"
 	"go-api/middleware"
@@ -24,6 +27,12 @@ import (
 // main é a função que inicia a aplicação.
 // É a primeira função executada quando você roda "go run main.go".
 func main() {
+	// Carrega variáveis de ambiente do arquivo .env
+	// Se o arquivo não existir, usa variáveis do sistema
+	if err := godotenv.Load(); err != nil {
+		log.Println("Arquivo .env não encontrado, usando variáveis do sistema")
+	}
+
 	// Configura o modo do Gin.
 	// gin.ReleaseMode desativa logs de debug em produção.
 	// gin.DebugMode (padrão) mostra logs detalhados.
