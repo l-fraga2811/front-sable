@@ -78,6 +78,8 @@ func (h *ItemHandler) Create(c *gin.Context) {
 		Description: req.Description,
 		Price:       req.Price,
 		Completed:   false,
+		CreatedAt:   time.Now().Format(time.RFC3339Nano),
+		UpdatedAt:   time.Now().Format(time.RFC3339Nano),
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{

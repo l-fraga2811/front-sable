@@ -67,6 +67,8 @@ type CreateItemPayload struct {
 	Description string  `json:"description"`
 	Price       float64 `json:"price"`
 	Completed   bool    `json:"completed"`
+	CreatedAt   string  `json:"created_at"`
+	UpdatedAt   string  `json:"updated_at"`
 }
 
 // UpdateItemPayload é o payload para atualizar um item.
