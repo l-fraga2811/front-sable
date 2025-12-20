@@ -105,10 +105,12 @@ func (ctrl *ItemController) GetByID(c *gin.Context) {
 
 	itemID := c.Param("id")
 	row, found, err := ctrl.client.GetItemByID(c.Request.Context(), accessToken, itemID)
+	
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar item"})
 		return
 	}
+
 	if !found {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Item não encontrado"})
 		return

@@ -12,23 +12,6 @@ import (
 	"time"
 )
 
-// RestClient é o cliente HTTP para a API REST do Supabase (PostgREST).
-//
-// CONCEITO: PostgREST
-// O Supabase expõe seu banco PostgreSQL via uma API REST automática chamada
-// PostgREST. Cada tabela vira um endpoint:
-//   - GET /rest/v1/items → SELECT * FROM items
-//   - POST /rest/v1/items → INSERT INTO items
-//   - PATCH /rest/v1/items?id=eq.123 → UPDATE items WHERE id = '123'
-//   - DELETE /rest/v1/items?id=eq.123 → DELETE FROM items WHERE id = '123'
-//
-// AUTENTICAÇÃO:
-//   - apikey: Chave anon do projeto (sempre enviada)
-//   - Authorization: Bearer <access_token> (token do usuário logado)
-//
-// RLS (Row Level Security):
-// O Supabase usa RLS para controlar acesso. O token do usuário determina
-// quais linhas ele pode ver/modificar baseado nas policies definidas no banco.
 type RestClient struct {
 	projectURL string
 	anonKey    string
@@ -44,11 +27,6 @@ func NewRestClient(cfg Config) *RestClient {
 	}
 }
 
-// ItemRow representa uma linha da tabela "items" no Supabase.
-//
-// CONVENÇÃO: snake_case no banco, camelCase no Go
-// O PostgreSQL usa snake_case (user_id, created_at).
-// As tags json mapeiam para os nomes das colunas no banco.
 type ItemRow struct {
 	ID          string  `json:"id"`
 	UserID      string  `json:"user_id"`
@@ -71,14 +49,6 @@ type CreateItemPayload struct {
 	UpdatedAt   string  `json:"updated_at"`
 }
 
-// UpdateItemPayload é o payload para atualizar um item.
-//
-// PADRÃO: Ponteiros para campos opcionais
-// Usamos ponteiros (*string, *float64) para diferenciar entre:
-//   - Campo não enviado (nil) → não atualiza
-//   - Campo enviado com valor zero ("", 0) → atualiza para zero
-//
-// A tag `omitempty` omite campos nil do JSON.
 type UpdateItemPayload struct {
 	Title       *string  `json:"title,omitempty"`
 	Description *string  `json:"description,omitempty"`
@@ -86,12 +56,6 @@ type UpdateItemPayload struct {
 	Completed   *bool    `json:"completed,omitempty"`
 }
 
-// ListItems retorna todos os items do usuário (filtrado por RLS).
-//
-// QUERY POSTGREST:
-// GET /rest/v1/items?select=*&order=created_at.desc
-//
-// O RLS garante que só retorna items do usuário autenticado.
 func (c *RestClient) ListItems(ctx context.Context, accessToken string) ([]ItemRow, error) {
 	q := url.Values{}
 	q.Set("select", "*")
@@ -99,12 +63,6 @@ func (c *RestClient) ListItems(ctx context.Context, accessToken string) ([]ItemR
 	return c.getItems(ctx, accessToken, q)
 }
 
-// GetItemByID busca um item específico pelo ID.
-//
-// QUERY POSTGREST:
-// GET /rest/v1/items?select=*&id=eq.{id}
-//
-// O operador "eq." significa "equals" (igual a).
 func (c *RestClient) GetItemByID(ctx context.Context, accessToken string, id string) (ItemRow, bool, error) {
 	q := url.Values{}
 	q.Set("select", "*")
@@ -120,12 +78,6 @@ func (c *RestClient) GetItemByID(ctx context.Context, accessToken string, id str
 	return items[0], true, nil
 }
 
-// CreateItem insere um novo item no banco.
-//
-// QUERY POSTGREST:
-// POST /rest/v1/items
-// Body: {"user_id": "...", "title": "...", ...}
-// Header: Prefer: return=representation (retorna o item criado)
 func (c *RestClient) CreateItem(ctx context.Context, accessToken string, payload CreateItemPayload) (ItemRow, error) {
 	var created []ItemRow
 	if err := c.doJSON(ctx, http.MethodPost, "/rest/v1/items", accessToken, nil, payload, &created, map[string]string{"Prefer": "return=representation"}); err != nil {
@@ -137,11 +89,6 @@ func (c *RestClient) CreateItem(ctx context.Context, accessToken string, payload
 	return created[0], nil
 }
 
-// UpdateItem atualiza um item existente.
-//
-// QUERY POSTGREST:
-// PATCH /rest/v1/items?id=eq.{id}
-// Body: {"title": "novo titulo", ...}
 func (c *RestClient) UpdateItem(ctx context.Context, accessToken string, id string, payload UpdateItemPayload) (ItemRow, bool, error) {
 	q := url.Values{}
 	q.Set("id", "eq."+id)
@@ -157,10 +104,6 @@ func (c *RestClient) UpdateItem(ctx context.Context, accessToken string, id stri
 	return updated[0], true, nil
 }
 
-// DeleteItem remove um item do banco.
-//
-// QUERY POSTGREST:
-// DELETE /rest/v1/items?id=eq.{id}
 func (c *RestClient) DeleteItem(ctx context.Context, accessToken string, id string) (bool, error) {
 	q := url.Values{}
 	q.Set("id", "eq."+id)
@@ -172,7 +115,6 @@ func (c *RestClient) DeleteItem(ctx context.Context, accessToken string, id stri
 	return len(deleted) > 0, nil
 }
 
-// getItems é um helper interno para buscar items com query customizada.
 func (c *RestClient) getItems(ctx context.Context, accessToken string, q url.Values) ([]ItemRow, error) {
 	var out []ItemRow
 	if err := c.doJSON(ctx, http.MethodGet, "/rest/v1/items", accessToken, q, nil, &out, nil); err != nil {
@@ -184,17 +126,6 @@ func (c *RestClient) getItems(ctx context.Context, accessToken string, q url.Val
 	return out, nil
 }
 
-// doJSON faz uma requisição HTTP e deserializa a resposta JSON.
-//
-// PARÂMETROS:
-//   - ctx: Contexto para cancelamento/timeout
-//   - method: GET, POST, PATCH, DELETE
-//   - path: Caminho da API (ex: /rest/v1/items)
-//   - accessToken: Token JWT do usuário
-//   - q: Query parameters (filtros)
-//   - payload: Body da requisição (será serializado para JSON)
-//   - out: Ponteiro para deserializar a resposta
-//   - extraHeaders: Headers adicionais (ex: Prefer)
 func (c *RestClient) doJSON(ctx context.Context, method string, path string, accessToken string, q url.Values, payload any, out any, extraHeaders map[string]string) error {
 	var body io.Reader
 	if payload != nil {
@@ -225,12 +156,6 @@ func (c *RestClient) doJSON(ctx context.Context, method string, path string, acc
 	return json.NewDecoder(resp.Body).Decode(out)
 }
 
-// do é o método base que monta e executa a requisição HTTP.
-//
-// HEADERS ENVIADOS:
-//   - apikey: Chave anon do projeto (obrigatório para Supabase)
-//   - Authorization: Bearer token (para RLS)
-//   - Content-Type: application/json (se tiver body)
 func (c *RestClient) do(ctx context.Context, method string, path string, accessToken string, q url.Values, body io.Reader, extraHeaders map[string]string) (*http.Response, error) {
 	base := strings.TrimRight(c.projectURL, "/")
 	fullURL := base + path
