@@ -1,5 +1,4 @@
 import api from "@/lib/axios";
-import { getSupabaseClient } from "@/lib/supabaseClient";
 import type {
   AuthResponse,
   LoginRequest,
@@ -7,27 +6,37 @@ import type {
   User,
 } from "@/types";
 
+interface BackendAuthResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  refresh_token: string;
+  user: {
+    id: string;
+    email: string;
+  };
+}
+
 export const authServices = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
-    const supabase = getSupabaseClient();
-    const { data: authData, error } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    });
-    if (error || !authData.session) {
-      throw new Error(error?.message || "Erro ao fazer login");
-    }
+    const response = await api.post<BackendAuthResponse>(
+      "/api/auth/login",
+      data
+    );
+    const authData = response.data;
+
+    const expiresAt = new Date(
+      Date.now() + authData.expires_in * 1000
+    ).toISOString();
 
     return {
       message: "Login realizado com sucesso",
-      token: authData.session.access_token,
-      expiresAt: authData.session.expires_at
-        ? new Date(authData.session.expires_at * 1000).toISOString()
-        : "",
+      token: authData.access_token,
+      expiresAt: expiresAt,
       user: {
-        id: authData.user?.id || "",
+        id: authData.user.id,
         username: "",
-        email: authData.user?.email || data.email,
+        email: authData.user.email,
       },
     };
   },
@@ -35,36 +44,27 @@ export const authServices = {
   register: async (
     data: RegisterRequest
   ): Promise<{ message: string; user: User }> => {
-    const supabase = getSupabaseClient();
-    const { data: authData, error } = await supabase.auth.signUp({
+    const response = await api.post<BackendAuthResponse>("/api/auth/register", {
       email: data.email,
       password: data.password,
-      options: {
-        data: {
-          username: data.username,
-        },
+      data: {
+        username: data.username,
       },
     });
-    if (error || !authData.user) {
-      throw new Error(error?.message || "Erro ao registrar");
-    }
+    const authData = response.data;
 
     return {
       message: "Usuário criado com sucesso",
       user: {
         id: authData.user.id,
         username: data.username,
-        email: authData.user.email || data.email,
+        email: authData.user.email,
       },
     };
   },
 
   logout: async (): Promise<{ message: string }> => {
-    const supabase = getSupabaseClient();
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      throw new Error(error.message);
-    }
+    // Client-side logout only (remove token)
     return { message: "Logout realizado com sucesso" };
   },
 
