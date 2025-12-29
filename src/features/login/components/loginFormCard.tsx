@@ -36,7 +36,7 @@ export function LoginFormCard({
     onSubmit,
 }: LoginFormCardProps) {
     return (
-        <motion.div className="flex items-center justify-center w-full h-full" initial={{ opacity: 0 }} animate={{ opacity: 100 }} transition={{ duration: 1.2 }}>
+        <motion.div className="flex items-center justify-center w-full h-full z-1" initial={{ opacity: 0 }} animate={{ opacity: 100 }} transition={{ duration: 1.2 }}>
             <Card className="w-full max-w-md">
                 <CardHeader className="space-y-1">
                     <CardTitle className="text-2xl font-bold text-center">Entrar</CardTitle>

@@ -9,6 +9,7 @@ import { selectIsAuthenticated, selectAuthLoading, selectAuthError } from "@/sto
 import { clearError } from "@/store/auth/reducers";
 import { LoginFormCard } from "@/features/login/components/loginFormCard";
 import { motion } from "framer-motion";
+import { DottedGlowBackground } from "@/components/ui/dotted-glow-background";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -53,18 +54,19 @@ export default function LoginPage() {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-background to-muted p-4">
-                <LoginFormCard
-                    email={email}
-                    password={password}
-                    phone={phone}
-                    showPassword={showPassword}
-                    isLoading={isLoading}
-                    onEmailChange={setEmail}
-                    onPasswordChange={setPassword}
-                    onPhoneChange={setPhone}
-                    onToggleShowPassword={() => setShowPassword((current) => !current)}
-                    onSubmit={handleSubmit}
-                />
+            <DottedGlowBackground color=""/>
+            <LoginFormCard
+                email={email}
+                password={password}
+                phone={phone}
+                showPassword={showPassword}
+                isLoading={isLoading}
+                onEmailChange={setEmail}
+                onPasswordChange={setPassword}
+                onPhoneChange={setPhone}
+                onToggleShowPassword={() => setShowPassword((current) => !current)}
+                onSubmit={handleSubmit}
+            />
         </div>
     );
 }
