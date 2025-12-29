@@ -54,7 +54,7 @@ export default function LoginPage() {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-background to-muted p-4">
-            <DottedGlowBackground color=""/>
+            <DottedGlowBackground  glowColor="beige" radius={3} className="mask-radial-to-60% mask-radial-at-center dark:opacity-100"/>
             <LoginFormCard
                 email={email}
                 password={password}
