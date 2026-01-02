@@ -7,9 +7,9 @@ export const login = createAsyncThunk(
   async (data: LoginRequest, { rejectWithValue }) => {
     try {
       const response = await authServices.login(data);
-      localStorage.setItem("token", response.token);
+      localStorage.setItem("token", response.access_token);
 
-      const profile = await authServices.getProfile(response.token);
+      const profile = await authServices.getProfile(response.access_token);
       localStorage.setItem("user", JSON.stringify(profile));
 
       return {
@@ -18,6 +18,11 @@ export const login = createAsyncThunk(
       };
     } catch (error: unknown) {
       const err = error as { message?: string };
+      if (err.message?.includes("email_not_confirmed")) {
+        return rejectWithValue(
+          "Por favor, confirme seu e-mail antes de fazer login. Verifique sua caixa de entrada."
+        );
+      }
       return rejectWithValue(err.message || "Erro ao fazer login");
     }
   }
@@ -57,7 +62,12 @@ export const getProfile = createAsyncThunk(
   "auth/getProfile",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await authServices.getProfile();
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      if (!token) {
+        return rejectWithValue("No authentication token found");
+      }
+      const response = await authServices.getProfile(token);
       localStorage.setItem("user", JSON.stringify(response));
       return response;
     } catch (error: unknown) {

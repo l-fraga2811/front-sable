@@ -1,13 +1,12 @@
 export interface User {
   id: string;
-  username: string;
   email: string;
+  phone?: string;
 }
 
 export interface LoginRequest {
   email: string;
   password: string;
-  phone?: string;
 }
 
 export interface RegisterRequest {
@@ -15,12 +14,13 @@ export interface RegisterRequest {
   email: string;
   password: string;
   phone?: string;
-} 
+}
 
 export interface AuthResponse {
-  message: string;
-  token: string;
-  expiresAt: string;
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  refresh_token: string;
   user: User;
 }
 

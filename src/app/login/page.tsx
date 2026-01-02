@@ -57,7 +57,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (data: LoginFormData) => {
     const result = await dispatch(
-      login({ email: data.email, password: data.password, phone: data.phone })
+      login({ email: data.email, password: data.password })
     );
     if (login.fulfilled.match(result)) {
       toast.success("Login realizado com sucesso!");
