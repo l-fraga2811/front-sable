@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { IMaskInput } from "react-imask";
 import { motion } from "framer-motion";
 
 type LoginFormCardProps = {
@@ -48,17 +47,6 @@ export function LoginFormCard({
                             {errors.email && (
                                 <p className="text-sm text-destructive mt-1">{errors.email.message}</p>
                             )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="phone">Telefone</Label>
-                            <IMaskInput
-                                id="phone"
-                                mask="(00) 00000-0000"
-                                placeholder="(XX) XXXXX-XXXX"
-                                {...register("phone")}
-                                disabled={isLoading}
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="password">Senha</Label>
