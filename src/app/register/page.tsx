@@ -22,7 +22,7 @@ const registerSchema = z
   .object({
     username: z.string().min(3, "Usuário deve ter pelo menos 3 caracteres"),
     email: z.string().email("E-mail inválido"),
-    phone: z.string(),
+    phone: z.string().optional(),
     password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
     confirmPassword: z.string().min(6, "Confirme sua senha"),
   })
@@ -70,6 +70,7 @@ export default function RegisterPage() {
         username: data.username,
         email: data.email,
         password: data.password,
+        phone: data.phone,
       })
     );
     if (register.fulfilled.match(result)) {

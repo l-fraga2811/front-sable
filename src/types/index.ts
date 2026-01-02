@@ -7,13 +7,15 @@ export interface User {
 export interface LoginRequest {
   email: string;
   password: string;
+  phone?: string;
 }
 
 export interface RegisterRequest {
   username: string;
   email: string;
   password: string;
-}
+  phone?: string;
+} 
 
 export interface AuthResponse {
   message: string;

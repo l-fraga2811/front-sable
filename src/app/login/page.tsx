@@ -21,7 +21,7 @@ import type { LoginFormData } from "@/types/authTypes";
 const loginSchema = z.object({
   email: z.string().email("E-mail inválido"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-  phone: z.string(),
+  phone: z.string().optional(),
 });
 
 export default function LoginPage() {
@@ -57,7 +57,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (data: LoginFormData) => {
     const result = await dispatch(
-      login({ email: data.email, password: data.password })
+      login({ email: data.email, password: data.password, phone: data.phone })
     );
     if (login.fulfilled.match(result)) {
       toast.success("Login realizado com sucesso!");
